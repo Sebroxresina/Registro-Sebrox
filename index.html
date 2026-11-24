@@ -181,15 +181,31 @@ textarea.in{min-height:96px;resize:vertical;line-height:1.4}
 .todo .btn small{display:block;font-weight:500;color:var(--muted);font-size:12.5px}
 .badge{background:var(--brown);color:#FFEDC3;border-radius:999px;font-size:12px;font-weight:700;padding:2px 10px;white-space:nowrap}
 .badge.ok{background:#D6EBDD;color:#1E5E39}
-.clase{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line)}
+.clase{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;padding:10px 0;border-bottom:1px dashed var(--line)}
 .clase:last-child{border-bottom:0}
 .clase .p{font-weight:600}
-.clase .m{font-size:12.5px;color:var(--muted);white-space:pre-line;margin-top:2px}
+.clase .m{font-size:12.5px;color:var(--muted);margin-top:2px}
+.prep{list-style:none;margin:6px 0 0;padding:0;font-size:13px}
+.prep li{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px dotted var(--line)}
+.prep li:last-child{border-bottom:0}
+.prep li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--muted)}
+.prep li.tot{font-weight:700}
+.prep li.tot span:last-child{color:var(--ink)}
 .tach{text-decoration:line-through;color:var(--muted)}
 .cambio{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:#FFF6DF;color:#6B4E00;border:1px solid #E6CC92}
 .hecho{opacity:.55}
-.prod{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0;background:#fff}
+.prod{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0;background:#fff}
 .prod .row .in{flex:1}
+.itrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 36px;gap:6px;align-items:end;margin:10px 0;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+.itrow .ins{grid-column:1/-1}
+.prod [name=nombre]{flex:1 1 180px}
+.itrow .in,.insrow .in{min-height:40px;padding:8px 9px}
+.itrow small,.insrow small{font-size:11px;color:var(--muted);font-weight:600}
+.itrow label,.insrow label{display:flex;flex-direction:column;gap:3px;min-width:0}
+.itrow .nota{grid-column:1/-1}
+.insrow{display:grid;grid-template-columns:minmax(0,1fr) 74px 84px 96px 36px;gap:6px;align-items:end;margin:8px 0;padding-bottom:8px;border-bottom:1px dashed var(--line)}
+@media (max-width:520px){.insrow{grid-template-columns:1fr 1fr 1fr 36px}.insrow .nom{grid-column:1/-1}}
+.costo{font-variant-numeric:tabular-nums;font-weight:700}
 .instalar{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:60;max-width:520px;margin:0 auto;background:var(--card);border:1px solid var(--gold);border-radius:16px;box-shadow:0 10px 30px rgba(60,30,10,.22);padding:12px;display:flex;gap:12px;align-items:center}
 .instalar img{width:48px;height:48px;border-radius:12px;flex:none}
 .instalar .tx{flex:1;font-size:13.5px;line-height:1.35}
@@ -269,9 +285,15 @@ textarea.in{min-height:96px;resize:vertical;line-height:1.4}
       <div id="adm-precios"></div>
     </div>
 
-    <h2>Productos y materiales de cada clase</h2>
+    <h2>Insumos y precios</h2>
     <div class="card">
-      <p class="hint" style="margin-top:0">Los productos que se hacen en cada nivel y la lista de materiales de cada uno. Después, en cada grupo elegís qué producto hacen en cada clase y ves qué materiales tenés que preparar.</p>
+      <p class="hint" style="margin-top:0">Cargá cada insumo como lo comprás: por ejemplo Resina, 1000 g, $30.000. Con eso la app calcula cuánto cuesta lo que usa cada alumno. Si cambia un precio, lo cambiás solo acá.</p>
+      <div id="adm-insumos"></div>
+    </div>
+
+    <h2>Productos y materiales</h2>
+    <div class="card">
+      <p class="hint" style="margin-top:0">Para cada producto: cuántas clases dura y cuánto de cada insumo usa un alumno en cada clase (por ejemplo, bandeja río: resina 300 g en la clase 1 para el río y 150 g en la clase 2 para el acabado). En cada grupo elegís qué producto hacen y ves qué preparar.</p>
       <div id="adm-productos"></div>
     </div>
 
@@ -379,14 +401,20 @@ const TPL_ORIG = {
   cuota: '¡Hola {nombre}! 👋 Te escribo de SEBROX por el pago de {nivel}: queda un saldo de {saldo}. Podés transferir al alias {alias} y mandarnos el comprobante por acá. ¡Gracias! 🤎',
   seguimiento: '¡Hola {nombre}! 👋 Gracias por venir a la clase de SEBROX 🤎 ¿Qué te pareció? Si te quedaron ganas de seguir, arranca el nivel Inicial: encapsulado de vinilo de 30x40, dos clases por mes. Próximos grupos: {proximosInicial}. ¿Te reservo un lugar?'
 };
-// Productos que se hacen en cada nivel (los materiales se cargan desde Administración)
+// Insumos (se compran por presentación) y productos de cada nivel. Precios y cantidades se completan desde Administración.
+const UNIDADES = { g: 'g', ml: 'ml', u: 'unid.', cm: 'cm' };
+const INSUMOS_ORIG = [
+  { id: 'i-resina', nombre: 'Resina epoxi', cant: 1000, unidad: 'g', precio: 0 },
+  { id: 'i-vinilo', nombre: 'Vinilo 30x40', cant: 1, unidad: 'u', precio: 0 },
+  { id: 'i-bastidor', nombre: 'Bastidor 30x40', cant: 1, unidad: 'u', precio: 0 }
+];
 const PRODUCTOS_ORIG = {
-  'Clase a la gorra': ['Letra de resina para llavero'],
-  'Inicial': ['Encapsulado de vinilo 30x40'],
-  'Intermedio': ['Bandeja río de pino 40x30', 'Portajabón líquido', 'Portarretrato', 'Bandeja mármol 40x30'],
-  'Avanzado': ['Obra efecto mar 40x30', 'Obra efecto lava'],
-  'Etapa 1 intensiva': ['Encapsulado de vinilo', 'Efecto mármol sobre madera'],
-  'Etapa 2 intensiva': ['Bandeja con objetos encapsulados (guayubira)']
+  'Clase a la gorra': [{ nombre: 'Letra de resina para llavero', clases: 1 }],
+  'Inicial': [{ nombre: 'Encapsulado de vinilo 30x40', clases: 2, items: [['i-bastidor', 1, 1], ['i-vinilo', 1, 1], ['i-resina', 100, 1]] }],
+  'Intermedio': [{ nombre: 'Bandeja río de pino 40x30', clases: 2 }, { nombre: 'Portajabón líquido', clases: 2 }, { nombre: 'Portarretrato', clases: 2 }, { nombre: 'Bandeja mármol 40x30', clases: 2 }],
+  'Avanzado': [{ nombre: 'Obra efecto mar 40x30', clases: 2 }, { nombre: 'Obra efecto lava', clases: 2 }],
+  'Etapa 1 intensiva': [{ nombre: 'Encapsulado de vinilo', clases: 1 }, { nombre: 'Efecto mármol sobre madera', clases: 1 }],
+  'Etapa 2 intensiva': [{ nombre: 'Bandeja con objetos encapsulados (guayubira)', clases: 2 }]
 };
 const CFG_ORIG = { script: '', clave: '', direccion: 'Bizet 1960, Hurlingham', alias: 'sebrox.arg', tpl: { ...TPL_ORIG } };
 
@@ -406,10 +434,13 @@ function normalizarConfig() {
   S.config.precios = Object.assign(JSON.parse(JSON.stringify(PRECIOS_ORIG)), S.config.precios || {});
   S.config.materiales = S.config.materiales || {};
   NIVELES.forEach(n => { if (!Array.isArray(S.config.materiales[n])) S.config.materiales[n] = []; });
-  // Productos por nivel, qué se hace en cada clase y cambios de fecha de cada alumno
-  if (!S.config.productos || typeof S.config.productos !== 'object') S.config.productos = {};
+  // Insumos, productos por nivel, qué se hace en cada clase y cambios de fecha de cada alumno
+  if (!Array.isArray(S.config.insumos)) S.config.insumos = INSUMOS_ORIG.map(x => ({ ...x }));
+  if (!S.config.productos || typeof S.config.productos !== 'object' || Array.isArray(S.config.productos)) S.config.productos = {};
   NIVELES.forEach(n => {
-    if (!Array.isArray(S.config.productos[n])) S.config.productos[n] = (PRODUCTOS_ORIG[n] || []).map((nombre, i) => ({ id: 'p-' + (NIVEL_CLASE[n] || 'x') + '-' + i, nombre, materiales: '' }));
+    if (!Array.isArray(S.config.productos[n])) S.config.productos[n] = (PRODUCTOS_ORIG[n] || []).map((p, i) => ({ id: 'p-' + (NIVEL_CLASE[n] || 'x') + '-' + i, nombre: p.nombre, clases: p.clases,
+      items: (p.items || []).map(([insumoId, cant, clase], j) => ({ id: 'it-' + i + '-' + j, insumoId, cant, clase, nota: '' })) }));
+    S.config.productos[n].forEach(p => { p.clases = Math.max(1, Number(p.clases) || 1); if (!Array.isArray(p.items)) p.items = []; });
   });
   if (!S.config.clases || typeof S.config.clases !== 'object' || Array.isArray(S.config.clases)) S.config.clases = {};
   if (!Array.isArray(S.config.cambios)) S.config.cambios = [];
@@ -494,16 +525,43 @@ function destinoTxt(c) {
   return c.inicio && c.fin ? `de ${horario(c)}` : '';
 }
 
-/* ---------- Qué se hace en cada clase ---------- */
+/* ---------- Insumos, productos y qué se hace en cada clase ---------- */
+const insumoPorId = id => S.config.insumos.find(x => x.id === id);
+const verCostos = () => !(conectado() && rol !== 'dueño');
+const precioUnit = ins => ins && Number(ins.cant) > 0 ? (Number(ins.precio) || 0) / Number(ins.cant) : 0;
+const costoItem = it => (Number(it.cant) || 0) * precioUnit(insumoPorId(it.insumoId));
+const costoProducto = p => (p.items || []).reduce((t, it) => t + costoItem(it), 0);
+const fmtNum = n => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-AR');
+const cantTxt = (n, u) => `${fmtNum(n)} ${UNIDADES[u] || u || ''}`.trim();
 const planClase = (gid, f) => (S.config.clases[gid] || {})[f] || {};
 const productoDe = (nivel, nombre) => (S.config.productos[nivel] || []).find(p => p.nombre === nombre);
-function materialesClase(g, f) {
-  const pl = planClase(g.id, f);
-  if (pl.materiales) return pl.materiales;
-  const pr = pl.producto && productoDe(g.nivel, pl.producto);
-  return pr ? pr.materiales || '' : '';
+const itemsDeClase = (p, n) => (p.items || []).filter(it => !Number(it.clase) || Number(it.clase) === Number(n));
+function asistentes(g, f) {
+  const fuera = S.config.cambios.filter(c => c.de === f && S.alumnos.some(a => a.id === c.alumnoId && a.grupoId === g.id && OCUPAN.includes(a.estado))).length;
+  const vienen = S.config.cambios.filter(c => c.grupoId === g.id && c.a === f && S.alumnos.some(a => a.id === c.alumnoId && a.estado !== 'Baja')).length;
+  return Math.max(0, ocupados(g) - fuera + vienen);
 }
-const lineas = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
+// Lo que hay que preparar para una clase de un grupo
+function prepararClase(g, f, plan) {
+  const pl = plan || planClase(g.id, f), p = pl.producto && productoDe(g.nivel, pl.producto);
+  if (!p) return null;
+  const n = asistentes(g, f), clase = Math.min(p.clases, Number(pl.clase) || 1);
+  const filas = itemsDeClase(p, clase).map(it => { const ins = insumoPorId(it.insumoId); return ins ? { ins, it, total: (Number(it.cant) || 0) * n, costo: costoItem(it) * n } : null; }).filter(Boolean);
+  return { p, n, clase, filas, costo: filas.reduce((t, x) => t + x.costo, 0) };
+}
+function prepHTML(pr) {
+  if (!pr) return '';
+  if (!pr.filas.length) return `<div class="m">Todavía no cargaste los materiales de la clase ${pr.clase} de este producto (Administración → Productos y materiales).</div>`;
+  const c = verCostos();
+  return `<ul class="prep">${pr.filas.map(x => `<li><span>${esc(x.ins.nombre)}${x.it.nota ? ' · ' + esc(x.it.nota) : ''}</span><span>${cantTxt(x.it.cant, x.ins.unidad)} × ${pr.n} = <b>${cantTxt(x.total, x.ins.unidad)}</b>${c ? ' · ' + plata(x.costo) : ''}</span></li>`).join('')}${c ? `<li class="tot"><span>Materiales de esta clase (${pr.n} alumno${pr.n === 1 ? '' : 's'})</span><span>${plata(pr.costo)}</span></li>` : ''}</ul>`;
+}
+// Cuánto paga un alumno por cada clase, para comparar con lo que se gasta en materiales
+function ingresoClase(nivel) {
+  const p = S.config.precios[nivel] || {}, insc = Number(p.insc) || 0, cuota = Number(p.cuota) || 0;
+  if (nivel === 'Clase a la gorra') return cuota;
+  if (INTENSIVOS.includes(nivel)) return (insc + cuota) / 2;
+  return cuota / 2;
+}
 
 /* ---------- Avisos ya mandados (se guardan en este dispositivo) ---------- */
 const LS_AVISOS = 'sebrox-gestion-avisos';
@@ -659,12 +717,12 @@ function pintarAgenda() {
     }
     const fuera = S.config.cambios.filter(c => c.de === s.f && S.alumnos.some(a => a.id === c.alumnoId && a.grupoId === s.g.id && OCUPAN.includes(a.estado)));
     const vienen = S.config.cambios.filter(c => c.grupoId === s.g.id && c.a === s.f).map(c => S.alumnos.find(a => a.id === c.alumnoId)).filter(Boolean);
-    const oc = ocupados(s.g) - fuera.length + vienen.length, lleno = oc >= s.g.cupo;
+    const oc = asistentes(s.g, s.f), lleno = oc >= s.g.cupo;
     const choca = ch.some(c => c.fecha === s.f && (c.a === s.g || c.b === s.g));
-    const pl = planClase(s.g.id, s.f), nMat = lineas(materialesClase(s.g, s.f)).length;
+    const pl = planClase(s.g.id, s.f), pp = pl.producto && productoDe(s.g.nivel, pl.producto);
     html += `<button type="button" class="ses${choca ? ' choque' : ''}" data-grupo="${s.g.id}">
       <div class="hora">${hhmm(s.g.inicio)} hs<small>a ${hhmm(s.g.fin)} hs</small></div>
-      <div class="info">${chipNivel(s.g.nivel)}<span>${s.total > 1 ? `Clase ${s.n} de ${s.total}` : 'Clase única'}${pl.producto ? ' · 🛠️ ' + esc(pl.producto) + (nMat ? ` (${nMat} materiales)` : '') : ''}${s.g.nota ? ' · ⚠️ ' + esc(s.g.nota) : ''}${choca ? ' · ⚠️ choca con otro grupo' : ''}${fuera.length ? ` · ${fuera.length} cambió de fecha` : ''}${vienen.length ? ' · viene ' + vienen.map(a => esc(a.nombre.split(' ')[0])).join(', ') + ' (cambio de fecha)' : ''}</span></div>
+      <div class="info">${chipNivel(s.g.nivel)}<span>${s.total > 1 ? `Clase ${s.n} de ${s.total}` : 'Clase única'}${pl.producto ? ' · 🛠️ ' + esc(pl.producto) + (pp && pp.clases > 1 ? ` (clase ${Math.min(pp.clases, Number(pl.clase) || 1)} de ${pp.clases})` : '') : ''}${s.g.nota ? ' · ⚠️ ' + esc(s.g.nota) : ''}${choca ? ' · ⚠️ choca con otro grupo' : ''}${fuera.length ? ` · ${fuera.length} cambió de fecha` : ''}${vienen.length ? ' · viene ' + vienen.map(a => esc(a.nombre.split(' ')[0])).join(', ') + ' (cambio de fecha)' : ''}</span></div>
       <div class="cupo ${lleno ? 'lleno' : ''}">${oc}/${s.g.cupo}<small>${lleno ? 'completo' : 'vienen'}</small></div>
     </button>`;
   });
@@ -739,10 +797,13 @@ function pintarAdmin() {
   document.querySelectorAll('[data-precio]').forEach(i => i.addEventListener('input', () => {
     const [n, k] = i.dataset.precio.split('|'); S.config.precios[n][k] = parseInt(i.value.replace(/\D/g, ''), 10) || 0; guardarConfig();
   }));
+  const c = verCostos();
+  $('#adm-insumos').innerHTML = (S.config.insumos.length ? `<div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Insumo</th><th class="n">Presentación</th>${c ? '<th class="n">Precio</th><th class="n">Equivale a</th>' : ''}</tr></thead><tbody>${S.config.insumos.map(i => `<tr><td>${esc(i.nombre)}</td><td class="n">${cantTxt(i.cant, i.unidad)}</td>${c ? `<td class="n">${i.precio ? plata(i.precio) : '<span style="color:var(--warn)">falta</span>'}</td><td class="n">${i.precio ? (['g', 'ml'].includes(i.unidad) ? plata(precioUnit(i) * 100) + ' cada 100 ' + UNIDADES[i.unidad] : plata(precioUnit(i)) + ' c/' + UNIDADES[i.unidad]) : ''}</td>` : ''}</tr>`).join('')}</tbody></table></div>` : '<div class="empty">Todavía no cargaste insumos.</div>')
+    + '<button type="button" class="btn sm" data-insumos="1" style="margin-top:8px">Editar insumos</button>';
   $('#adm-productos').innerHTML = NIVELES.map(n => { const ps = S.config.productos[n] || [];
     return `<div class="row" style="margin:12px 0 2px">${chipNivel(n)}<span class="spacer"></span><button type="button" class="btn sm ghost" data-productos="${esc(n)}">Editar</button></div>
-    <div class="hint">${ps.length ? ps.map(p => `${esc(p.nombre)} · ${lineas(p.materiales).length ? lineas(p.materiales).length + ' materiales' : '<span style="color:var(--warn)">sin materiales</span>'}`).join('<br>') : 'Sin productos cargados.'}</div>`; }).join('')
-    + (conectado() && rol !== 'dueño' ? '<p class="hint">🔒 Para guardar productos, materiales y cambios de fecha en la planilla, entrá al Panel con su clave.</p>' : '');
+    <div class="hint">${ps.length ? ps.map(p => `${esc(p.nombre)} · ${p.clases} clase${p.clases === 1 ? '' : 's'} · ${p.items.length ? p.items.length + ' materiales' + (c ? ' · <b>' + plata(costoProducto(p)) + '</b> por alumno' : '') : '<span style="color:var(--warn)">sin materiales</span>'}`).join('<br>') : 'Sin productos cargados.'}</div>`; }).join('')
+    + (conectado() && rol !== 'dueño' ? '<p class="hint">🔒 Para guardar insumos, productos y cambios de fecha en la planilla, entrá al Panel con su clave.</p>' : '');
   document.querySelectorAll('[data-tpl]').forEach(t => { t.value = CFG.tpl[t.dataset.tpl]; });
   document.querySelectorAll('[data-cfg]').forEach(i => { i.value = CFG[i.dataset.cfg]; });
   $('#cfg-script').value = CFG.script; $('#cfg-clave').value = CFG.clave;
@@ -783,9 +844,9 @@ function hojaGrupo(id) {
     ${(() => { const v = S.config.cambios.filter(c => c.grupoId === g.id).map(c => ({ c, al: S.alumnos.find(a => a.id === c.alumnoId) })).filter(x => x.al);
       return v.length ? `<div class="alert soft"><b>Vienen de otro grupo:</b> ${v.map(x => `${esc(x.al.nombre)} el ${diaDe(x.c.a)} ${corta(x.c.a)}`).join(', ')}.</div>` : ''; })()}
     <h2 style="margin-top:16px">Qué hacen en cada clase</h2>
-    <div class="card" style="padding:4px 14px">${fechasOrd(g).map(f => { const pl = planClase(g.id, f), mats = lineas(materialesClase(g, f));
-      return `<div class="clase"><div><div class="p">${cap(diaDe(f))} ${corta(f)} · ${pl.producto ? esc(pl.producto) : '<span class="det" style="font-weight:500">sin producto elegido</span>'}</div>
-        ${mats.length ? `<div class="m">${mats.map(esc).join(' · ')}</div>` : pl.producto ? '<div class="m">Sin materiales cargados para este producto.</div>' : ''}${pl.nota ? `<div class="m">📝 ${esc(pl.nota)}</div>` : ''}</div>
+    <div class="card" style="padding:4px 14px">${fechasOrd(g).map(f => { const pl = planClase(g.id, f), pr = prepararClase(g, f);
+      return `<div class="clase"><div><div class="p">${cap(diaDe(f))} ${corta(f)} · ${pl.producto ? esc(pl.producto) + (pr && pr.p.clases > 1 ? ` · clase ${pr.clase} de ${pr.p.clases}` : '') : '<span class="det" style="font-weight:500">sin producto elegido</span>'}</div>
+        ${pr ? prepHTML(pr) : ''}${pl.nota ? `<div class="m">📝 ${esc(pl.nota)}</div>` : ''}</div>
         <button type="button" class="btn sm" data-clase="${g.id}|${f}">${pl.producto ? 'Editar' : 'Elegir'}</button></div>`; }).join('')}</div>
     <div class="row" style="margin-top:10px">
       <button type="button" class="btn primary" data-add-en="${g.id}">+ Anotar alumno</button>
@@ -899,58 +960,171 @@ function hojaCambio(alumnoId, de) {
 function hojaClase(gid, fecha) {
   const g = grupoPorId(gid); if (!g) return;
   const pl = planClase(gid, fecha), prods = S.config.productos[g.nivel] || [];
-  const esOtro = pl.producto && !productoDe(g.nivel, pl.producto);
   abrirHoja(`${cabecera(esc(g.nivel) + ' · ' + cap(diaDe(fecha)) + ' ' + corta(fecha))}
-    <p class="sub">Elegí qué producto hacen en esta clase. Los materiales salen de la lista del producto; si esta clase lleva algo distinto, cambialos acá.</p>
+    <p class="sub">Elegí qué producto hacen y qué clase del producto es. Abajo ves qué preparar para los alumnos que vienen ese día.</p>
     <form id="f-clase">
-      <label class="f">Producto<select class="in" name="producto" data-no-focus="1"><option value="">— Sin elegir —</option>${prods.map(p => `<option ${p.nombre === pl.producto ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}<option value="__otro" ${esOtro ? 'selected' : ''}>Otro…</option></select></label>
-      <label class="f ${esOtro ? '' : 'hidden'}" id="clase-otro-l">¿Cuál?<input class="in" name="otro" value="${esOtro ? esc(pl.producto) : ''}"></label>
-      <label class="f">Materiales para preparar (uno por línea)<textarea class="in" name="materiales" placeholder="Por ejemplo:&#10;Resina 500 g&#10;Vinilo 30x40&#10;Pigmento blanco"></textarea></label>
+      ${prods.length ? '' : '<div class="alert soft">Todavía no hay productos para este nivel. Cargalos en Administración → Productos y materiales.</div>'}
+      <div class="grid2">
+        <label class="f">Producto<select class="in" name="producto" data-no-focus="1"><option value="">— Sin elegir —</option>${prods.map(p => `<option ${p.nombre === pl.producto ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></label>
+        <label class="f">¿Qué clase del producto?<select class="in" name="clase"></select></label>
+      </div>
+      <div id="clase-prev"></div>
       <label class="f">Nota (opcional)<input class="in" name="nota" value="${esc(pl.nota || '')}" placeholder="Por ejemplo: traer las piezas de la clase anterior"></label>
-      <label class="row" style="font-size:13.5px;color:var(--muted);gap:8px;margin:6px 0 10px;cursor:pointer"><input type="checkbox" name="siguientes" style="width:20px;height:20px"> Usar este producto en las clases siguientes de este grupo que no tengan uno elegido</label>
+      <label class="row" style="font-size:13.5px;color:var(--muted);gap:8px;margin:6px 0 10px;cursor:pointer"><input type="checkbox" name="siguientes" style="width:20px;height:20px"> Seguir con este producto en las clases siguientes de este grupo (clase 2, 3…)</label>
       <div class="row"><button type="submit" class="btn primary">Guardar</button><button type="button" class="btn ghost" data-grupo="${g.id}">Volver al grupo</button></div>
     </form>`);
   const f = $('#f-clase');
-  const nombreSel = () => f.producto.value === '__otro' ? f.otro.value.trim() : f.producto.value;
-  const plantilla = () => { const p = productoDe(g.nivel, nombreSel()); return p ? p.materiales || '' : ''; };
-  f.materiales.value = pl.materiales || plantilla();
-  let ultima = plantilla();
-  f.producto.addEventListener('change', () => {
-    $('#clase-otro-l').classList.toggle('hidden', f.producto.value !== '__otro');
-    if (!f.materiales.value.trim() || f.materiales.value === ultima) f.materiales.value = plantilla();
-    ultima = plantilla();
-  });
+  const prod = () => productoDe(g.nivel, f.producto.value);
+  const sugerida = p => Math.min(p.clases, fechasOrd(g).filter(x => x < fecha && planClase(gid, x).producto === p.nombre).length + 1);
+  const armarClases = () => {
+    const p = prod();
+    if (!p) { f.clase.innerHTML = '<option value="1">—</option>'; f.clase.disabled = true; return; }
+    const sel = p.nombre === pl.producto && pl.clase ? Math.min(p.clases, Number(pl.clase)) : sugerida(p);
+    f.clase.disabled = false;
+    f.clase.innerHTML = Array.from({ length: p.clases }, (_, i) => `<option value="${i + 1}" ${i + 1 === sel ? 'selected' : ''}>Clase ${i + 1} de ${p.clases}</option>`).join('');
+  };
+  const previa = () => {
+    const p = prod();
+    $('#clase-prev').innerHTML = p ? `<div class="card" style="margin:6px 0"><b style="font-size:13px;color:var(--muted)">Para preparar</b>${prepHTML(prepararClase(g, fecha, { producto: p.nombre, clase: f.clase.value }))}</div>` : '';
+  };
+  f.producto.addEventListener('change', () => { armarClases(); previa(); });
+  f.clase.addEventListener('change', previa);
+  armarClases(); previa();
   f.addEventListener('submit', e => {
     e.preventDefault();
-    const producto = nombreSel(), mats = f.materiales.value.trim(), tpl = plantilla().trim();
+    const p = prod(), clase = p ? Number(f.clase.value) || 1 : 0, nota = f.nota.value.trim();
     S.config.clases[gid] = S.config.clases[gid] || {};
-    if (!producto && !mats && !f.nota.value.trim()) delete S.config.clases[gid][fecha];
-    else S.config.clases[gid][fecha] = { producto, materiales: mats === tpl ? '' : mats, nota: f.nota.value.trim() };
-    if (producto && f.siguientes.checked) fechasOrd(g).filter(x => x > fecha && !planClase(gid, x).producto).forEach(x => { S.config.clases[gid][x] = { producto, materiales: '', nota: '' }; });
+    if (!p && !nota) delete S.config.clases[gid][fecha];
+    else S.config.clases[gid][fecha] = { producto: p ? p.nombre : '', clase, nota };
+    if (p && f.siguientes.checked) {
+      let n = clase;
+      for (const x of fechasOrd(g).filter(x => x > fecha)) {
+        if (planClase(gid, x).producto) break;
+        n += 1; if (n > p.clases) break;
+        S.config.clases[gid][x] = { producto: p.nombre, clase: n, nota: '' };
+      }
+    }
     guardarConfig(); pintar(); hojaGrupo(gid); toast('Clase guardada.');
   });
 }
 
 function hojaProductos(nivel) {
-  const items = (S.config.productos[nivel] || []).map(p => ({ ...p }));
-  const fila = p => `<div class="prod" data-id="${esc(p.id)}">
-      <div class="row"><input class="in" name="nombre" value="${esc(p.nombre)}" placeholder="Nombre del producto" aria-label="Producto"><button type="button" class="iconbtn" data-quitar-prod aria-label="Quitar producto">✕</button></div>
-      <label class="f" style="margin-bottom:0">Materiales (uno por línea)<textarea class="in" name="materiales" placeholder="Por ejemplo:&#10;Resina 500 g&#10;Madera de pino 40x30&#10;Pigmento azul">${esc(p.materiales || '')}</textarea></label></div>`;
+  const prods = (S.config.productos[nivel] || []).map(p => ({ ...p, items: (p.items || []).map(it => ({ ...it })) }));
+  const ins = S.config.insumos, c = verCostos();
+  const optIns = sel => `<option value="">— Insumo —</option>` + ins.map(i => `<option value="${esc(i.id)}" ${i.id === sel ? 'selected' : ''}>${esc(i.nombre)} (${UNIDADES[i.unidad] || i.unidad})</option>`).join('');
+  const optClase = (n, sel) => Array.from({ length: n }, (_, i) => `<option value="${i + 1}" ${i + 1 === Number(sel) ? 'selected' : ''}>Clase ${i + 1}</option>`).join('');
+  const filaItem = (it, n) => `<div class="itrow" data-id="${esc(it.id)}">
+      <label class="ins"><small>Insumo</small><select class="in" name="insumo">${optIns(it.insumoId)}</select></label>
+      <label><small>Por alumno</small><input class="in" name="cant" inputmode="decimal" value="${esc(it.cant || '')}" placeholder="100"></label>
+      <label><small>Clase</small><select class="in" name="clase">${optClase(n, it.clase || 1)}</select></label>
+      <button type="button" class="iconbtn" data-quitar-item aria-label="Quitar material">✕</button>
+      <input class="in nota" name="nota" value="${esc(it.nota || '')}" placeholder="Para qué (opcional): río, acabado, base…" aria-label="Para qué se usa"></div>`;
+  const filaProd = p => `<div class="prod" data-id="${esc(p.id)}">
+      <div class="row"><input class="in" name="nombre" value="${esc(p.nombre)}" placeholder="Nombre del producto" aria-label="Producto">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);font-weight:600">Clases<input class="in" name="clases" type="number" min="1" max="12" value="${esc(p.clases || 1)}" style="width:64px"></label>
+        <button type="button" class="iconbtn" data-quitar-prod aria-label="Quitar producto">✕</button></div>
+      <div class="items">${(p.items || []).map(it => filaItem(it, p.clases || 1)).join('')}</div>
+      <div class="row" style="margin-top:6px"><button type="button" class="btn sm ghost" data-add-item>+ Material</button><span class="spacer"></span>${c ? '<span class="hint" style="margin:0">Por alumno: <b class="costo">$0</b></span>' : ''}</div></div>`;
   abrirHoja(`${cabecera('Productos · ' + esc(nivel))}
-    <p class="sub">Escribí los materiales de cada producto, uno por línea. Es la lista que vas a ver en cada clase para preparar.</p>
+    <p class="sub">Para cada material poné cuánto usa <b>un alumno</b> y en qué clase. La cantidad va en la unidad del insumo (gramos, unidades…).</p>
+    ${ins.length ? '' : '<div class="alert soft">Primero cargá los insumos en Administración → Insumos y precios.</div>'}
     <form id="f-prod">
-      <div id="prod-list">${(items.length ? items : [{ id: nuevoId('p-'), nombre: '', materiales: '' }]).map(fila).join('')}</div>
+      <div id="prod-list">${(prods.length ? prods : [{ id: nuevoId('p-'), nombre: '', clases: 1, items: [] }]).map(filaProd).join('')}</div>
       <button type="button" class="btn sm ghost" id="add-prod">+ Agregar producto</button>
       <button type="submit" class="btn primary block" style="margin-top:12px">Guardar productos</button>
     </form>`);
   const f = $('#f-prod');
-  $('#add-prod').addEventListener('click', () => { $('#prod-list').insertAdjacentHTML('beforeend', fila({ id: nuevoId('p-'), nombre: '', materiales: '' })); });
-  f.addEventListener('click', e => { const q = e.target.closest('[data-quitar-prod]'); if (q) q.closest('.prod').remove(); });
+  const leerItem = r => ({ id: r.dataset.id, insumoId: r.querySelector('[name=insumo]').value, cant: parseFloat(String(r.querySelector('[name=cant]').value).replace(',', '.')) || 0, clase: Number(r.querySelector('[name=clase]').value) || 1, nota: r.querySelector('[name=nota]').value.trim() });
+  const recalcular = () => {
+    if (!c) return;
+    f.querySelectorAll('.prod').forEach(pe => { const t = [...pe.querySelectorAll('.itrow')].map(leerItem).reduce((s, it) => s + costoItem(it), 0); const b = pe.querySelector('.costo'); if (b) b.textContent = plata(t); });
+  };
+  f.addEventListener('input', e => {
+    if (e.target.name === 'clases') {
+      const pe = e.target.closest('.prod'), n = Math.max(1, Math.min(12, parseInt(e.target.value, 10) || 1));
+      pe.querySelectorAll('.itrow [name=clase]').forEach(s => { const v = Math.min(n, Number(s.value) || 1); s.innerHTML = optClase(n, v); });
+    }
+    recalcular();
+  });
+  f.addEventListener('change', recalcular);
+  f.addEventListener('click', e => {
+    const qp = e.target.closest('[data-quitar-prod]'); if (qp) { qp.closest('.prod').remove(); return; }
+    const qi = e.target.closest('[data-quitar-item]'); if (qi) { qi.closest('.itrow').remove(); recalcular(); return; }
+    const ai = e.target.closest('[data-add-item]');
+    if (ai) { const pe = ai.closest('.prod'), n = Math.max(1, parseInt(pe.querySelector('[name=clases]').value, 10) || 1); pe.querySelector('.items').insertAdjacentHTML('beforeend', filaItem({ id: nuevoId('it-'), insumoId: '', cant: '', clase: 1, nota: '' }, n)); }
+  });
+  $('#add-prod').addEventListener('click', () => { $('#prod-list').insertAdjacentHTML('beforeend', filaProd({ id: nuevoId('p-'), nombre: '', clases: 1, items: [] })); });
+  recalcular();
   f.addEventListener('submit', e => {
     e.preventDefault();
-    S.config.productos[nivel] = [...f.querySelectorAll('.prod')].map(r => ({ id: r.dataset.id, nombre: r.querySelector('[name=nombre]').value.trim(), materiales: r.querySelector('[name=materiales]').value.trim() })).filter(p => p.nombre);
+    S.config.productos[nivel] = [...f.querySelectorAll('.prod')].map(pe => ({ id: pe.dataset.id, nombre: pe.querySelector('[name=nombre]').value.trim(), clases: Math.max(1, Math.min(12, parseInt(pe.querySelector('[name=clases]').value, 10) || 1)),
+      items: [...pe.querySelectorAll('.itrow')].map(leerItem).filter(it => it.insumoId && it.cant > 0) })).filter(p => p.nombre);
     guardarConfig(); cerrarHoja(); pintar(); toast(`Productos de ${nivel} guardados.`);
   });
+}
+
+function hojaInsumos() {
+  const items = S.config.insumos.map(i => ({ ...i })), c = verCostos();
+  const fila = i => `<div class="insrow" data-id="${esc(i.id)}">
+      <label class="nom"><small>Insumo</small><input class="in" name="nombre" value="${esc(i.nombre)}" placeholder="Ej: Resina epoxi"></label>
+      <label><small>Viene de</small><input class="in" name="cant" inputmode="decimal" value="${esc(i.cant || '')}" placeholder="1000"></label>
+      <label><small>Unidad</small><select class="in" name="unidad">${Object.entries(UNIDADES).map(([k, v]) => `<option value="${k}" ${k === i.unidad ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      ${c ? `<label><small>Precio ($)</small><input class="in" name="precio" inputmode="numeric" value="${esc(i.precio || '')}" placeholder="0"></label>` : '<span></span>'}
+      <button type="button" class="iconbtn" data-quitar-ins aria-label="Quitar insumo">✕</button></div>`;
+  abrirHoja(`${cabecera('Insumos y precios')}
+    <p class="sub">Cargá cada insumo como lo comprás. Ejemplos: Resina epoxi, viene de 1000 g, $30.000 · Vinilo 30x40, viene de 1 unid., $3.000.</p>
+    <form id="f-ins">
+      <div id="ins-list">${(items.length ? items : [{ id: nuevoId('i-'), nombre: '', cant: '', unidad: 'g', precio: '' }]).map(fila).join('')}</div>
+      <button type="button" class="btn sm ghost" id="add-ins">+ Agregar insumo</button>
+      <button type="submit" class="btn primary block" style="margin-top:12px">Guardar insumos</button>
+    </form>`);
+  const f = $('#f-ins');
+  $('#add-ins').addEventListener('click', () => { $('#ins-list').insertAdjacentHTML('beforeend', fila({ id: nuevoId('i-'), nombre: '', cant: '', unidad: 'g', precio: '' })); });
+  f.addEventListener('click', e => { const q = e.target.closest('[data-quitar-ins]'); if (q) q.closest('.insrow').remove(); });
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    const viejos = Object.fromEntries(S.config.insumos.map(i => [i.id, i]));
+    S.config.insumos = [...f.querySelectorAll('.insrow')].map(r => ({ id: r.dataset.id, nombre: r.querySelector('[name=nombre]').value.trim(),
+      cant: parseFloat(String(r.querySelector('[name=cant]').value).replace(',', '.')) || 1, unidad: r.querySelector('[name=unidad]').value,
+      precio: r.querySelector('[name=precio]') ? parseInt(String(r.querySelector('[name=precio]').value).replace(/\D/g, ''), 10) || 0 : (viejos[r.dataset.id] || {}).precio || 0 })).filter(i => i.nombre);
+    guardarConfig(); cerrarHoja(); pintar(); toast('Insumos guardados.');
+  });
+}
+
+// Panel: costo de materiales por producto y lo que hay que comprar para las próximas clases
+function costosHTML() {
+  const filas = [];
+  NIVELES.forEach(n => (S.config.productos[n] || []).forEach(p => {
+    const ingreso = ingresoClase(n) * p.clases, costo = costoProducto(p);
+    filas.push({ n, p, ingreso, costo, queda: ingreso - costo });
+  }));
+  const max = Math.max(1, ...filas.map(x => Math.max(x.ingreso, x.costo)));
+  const pct = v => Math.max(0, v) / max * 100;
+  const h = hoyISO(), hasta = sumarDias(h, 14), compras = {};
+  let sinPlan = 0;
+  S.grupos.forEach(g => fechasOrd(g).filter(f => f >= h && f <= hasta).forEach(f => {
+    const pr = prepararClase(g, f);
+    if (!pr) { if (asistentes(g, f)) sinPlan += 1; return; }
+    pr.filas.forEach(x => { const k = x.ins.id; compras[k] = compras[k] || { ins: x.ins, total: 0, costo: 0 }; compras[k].total += x.total; compras[k].costo += x.costo; });
+  }));
+  const lista = Object.values(compras).sort((a, b) => b.costo - a.costo);
+  return `<h2>Materiales por producto</h2>
+    <div class="card">
+      <p class="hint" style="margin-top:0">Lo que paga un alumno por las clases de cada producto, cuánto se va en materiales y cuánto te queda. Se calcula con los insumos y cantidades de Administración. Por clase se toma: media cuota en los niveles mensuales, el aporte mínimo en la clase a la gorra y la mitad del curso en los intensivos.</p>
+      <div class="mleg"><span><i style="background:#9C4A22"></i>Materiales</span><span><i style="background:#D4A043"></i>Te queda</span></div>
+      <div class="mchart">${filas.length ? filas.map(x => `<div class="mrow">
+        <span class="lab">${esc(x.p.nombre)}<br><small style="color:var(--muted);font-weight:500">${esc(x.n)}</small></span>
+        <div><div class="mbar" title="${esc(x.p.nombre)}: paga ${plata(x.ingreso)}, materiales ${plata(x.costo)}">
+          ${x.costo > 0 ? `<span class="mat${x.queda > 0 ? '' : ' solo'}" style="width:${pct(Math.min(x.costo, x.ingreso || x.costo))}%"></span>` : ''}
+          ${x.queda > 0 ? `<span class="que${x.costo > 0 ? '' : ' solo'}" style="width:${pct(x.queda)}%"></span>` : ''}
+        </div>
+        <div class="mnums">${x.p.clases} clase${x.p.clases === 1 ? '' : 's'} · paga <b>${plata(x.ingreso)}</b> · materiales <b>${plata(x.costo)}</b>${x.ingreso ? ` (${Math.round(x.costo / x.ingreso * 100)}%)` : ''} · te queda <b style="color:${x.queda < 0 ? 'var(--warn)' : 'var(--ink)'}">${x.queda < 0 ? '−' : ''}${plata(Math.abs(x.queda))}</b>${x.p.items.length ? '' : ' · <span style="color:var(--warn)">sin materiales cargados</span>'}</div></div>
+      </div>`).join('') : '<div class="empty">Cargá productos en Administración.</div>'}</div>
+      <h3 style="font-size:14px;margin:16px 0 4px;color:var(--brown)">Para las clases de los próximos 14 días</h3>
+      ${lista.length ? `<div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Insumo</th><th class="n">Cantidad</th><th class="n">Costo</th></tr></thead><tbody>${lista.map(x => `<tr><td>${esc(x.ins.nombre)}</td><td class="n">${cantTxt(x.total, x.ins.unidad)}</td><td class="n">${plata(x.costo)}</td></tr>`).join('')}<tr><td><b>Total</b></td><td></td><td class="n"><b>${plata(lista.reduce((t, x) => t + x.costo, 0))}</b></td></tr></tbody></table></div>`
+        : '<div class="empty" style="padding:12px">Todavía no hay clases con producto elegido en los próximos 14 días.</div>'}
+      ${sinPlan ? `<p class="hint">⚠️ ${sinPlan} clase${sinPlan === 1 ? '' : 's'} con alumnos todavía no tiene${sinPlan === 1 ? '' : 'n'} producto elegido, así que no entra${sinPlan === 1 ? '' : 'n'} en esta cuenta. Elegilo desde cada grupo.</p>` : ''}
+    </div>`;
 }
 
 function hojaGrupoEditar(id) {
@@ -1162,7 +1336,7 @@ function pintarPanel() {
       <tbody>${porNivel.map(x => `<tr><td>${chipNivel(x.n)}</td><td class="n">${plata(x.cobrado)}</td><td class="n">${plata(x.debe)}</td><td class="n">${plata(x.potencial)}</td></tr>`).join('')}</tbody>
     </table><p class="hint">Cobrado y falta: alumnos con lugar en grupos con clases por delante. "Si se llenan": lo que entraría con los lugares libres, a precio de inscripción + primera cuota.</p></div>
 
-    ${materialesHTML(conLugar, activos)}
+    ${costosHTML()}
 
     ${medios.length ? `<h2>Cobros por medio · ${periodo}</h2><div class="card"><table class="tabla"><tbody>${medios.map(x => `<tr><td>${x.md}</td><td class="n"><b>${plata(x.t)}</b></td></tr>`).join('')}</tbody></table></div>` : ''}
 
@@ -1278,6 +1452,7 @@ document.addEventListener('click', e => {
   if (d.avisoOk) { const [tipo, k] = d.avisoOk.split('|'); marcarAviso(k); hojaTodo(tipo); return pintar(); }
   if (d.clase) { const [gid, f] = d.clase.split('|'); return hojaClase(gid, f); }
   if (d.productos) return hojaProductos(d.productos);
+  if (d.insumos) return hojaInsumos();
   if (d.cambiarFecha) { const [alId, f] = d.cambiarFecha.split('|'); return hojaCambio(alId, f); }
   if (d.deshacerCambio) {
     const c = S.config.cambios.find(x => x.id === d.deshacerCambio); if (!c) return;
@@ -1368,7 +1543,7 @@ function aplicarDrive(j) {
   } else {
     S.movs = []; S.pagados = j.pagados || {};
     if (j.config && j.config.precios) S.config.precios = j.config.precios;
-    if (j.config) ['productos', 'clases', 'cambios'].forEach(k => { if (j.config[k]) S.config[k] = j.config[k]; });
+    if (j.config) ['insumos', 'productos', 'clases', 'cambios'].forEach(k => { if (j.config[k]) S.config[k] = j.config[k]; });
     NIVELES.forEach(n => { S.config.materiales[n] = []; });
     normalizarConfig();
   }
