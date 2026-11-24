@@ -176,6 +176,20 @@ textarea.in{min-height:96px;resize:vertical;line-height:1.4}
 .matrow .in{min-height:40px;padding:8px 9px}
 .matrow small{font-size:11px;color:var(--muted);font-weight:600}
 .saldo{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:#FBEDEB;color:var(--warn)}
+.todo{display:grid;gap:8px}
+.todo .btn{justify-content:space-between;text-align:left;width:100%}
+.todo .btn small{display:block;font-weight:500;color:var(--muted);font-size:12.5px}
+.badge{background:var(--brown);color:#FFEDC3;border-radius:999px;font-size:12px;font-weight:700;padding:2px 10px;white-space:nowrap}
+.badge.ok{background:#D6EBDD;color:#1E5E39}
+.clase{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line)}
+.clase:last-child{border-bottom:0}
+.clase .p{font-weight:600}
+.clase .m{font-size:12.5px;color:var(--muted);white-space:pre-line;margin-top:2px}
+.tach{text-decoration:line-through;color:var(--muted)}
+.cambio{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:#FFF6DF;color:#6B4E00;border:1px solid #E6CC92}
+.hecho{opacity:.55}
+.prod{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0;background:#fff}
+.prod .row .in{flex:1}
 .instalar{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:60;max-width:520px;margin:0 auto;background:var(--card);border:1px solid var(--gold);border-radius:16px;box-shadow:0 10px 30px rgba(60,30,10,.22);padding:12px;display:flex;gap:12px;align-items:center}
 .instalar img{width:48px;height:48px;border-radius:12px;flex:none}
 .instalar .tx{flex:1;font-size:13.5px;line-height:1.35}
@@ -198,6 +212,7 @@ textarea.in{min-height:96px;resize:vertical;line-height:1.4}
     <h1>Agenda</h1>
     <p class="sub">Próximas clases de todos los grupos. Tocá una para ver quiénes vienen y escribirles.</p>
     <div id="agenda-choques"></div>
+    <div id="agenda-todo"></div>
     <div class="filters" id="agenda-f"></div>
     <div id="agenda-list"></div>
     <div class="row" style="justify-content:center;margin-top:10px"><button type="button" class="btn ghost sm" id="btn-pasadas">Ver también las pasadas</button></div>
@@ -217,6 +232,7 @@ textarea.in{min-height:96px;resize:vertical;line-height:1.4}
     <p class="sub">Todos los anotados, con sus datos y lo que pagaron.</p>
     <input class="search" id="al-q" type="search" placeholder="Buscar por nombre, teléfono o domicilio…" aria-label="Buscar alumno">
     <div class="filters" id="al-f" style="margin-top:10px"></div>
+    <div id="al-dup"></div>
     <div class="card" id="al-list" style="padding:4px 14px"></div>
   </section>
 
@@ -253,12 +269,20 @@ textarea.in{min-height:96px;resize:vertical;line-height:1.4}
       <div id="adm-precios"></div>
     </div>
 
+    <h2>Productos y materiales de cada clase</h2>
+    <div class="card">
+      <p class="hint" style="margin-top:0">Los productos que se hacen en cada nivel y la lista de materiales de cada uno. Después, en cada grupo elegís qué producto hacen en cada clase y ves qué materiales tenés que preparar.</p>
+      <div id="adm-productos"></div>
+    </div>
+
     <h2>Mensajes de WhatsApp</h2>
     <div class="card">
-      <p class="hint" style="margin-top:0">Se completan solos con los datos de cada alumno. Podés usar: <span class="code">{nombre}</span> <span class="code">{nivel}</span> <span class="code">{fechas}</span> <span class="code">{horario}</span> <span class="code">{proxima}</span> <span class="code">{direccion}</span> <span class="code">{alias}</span> <span class="code">{link}</span></p>
+      <p class="hint" style="margin-top:0">Se completan solos con los datos de cada alumno. Podés usar: <span class="code">{nombre}</span> <span class="code">{nivel}</span> <span class="code">{fechas}</span> <span class="code">{horario}</span> <span class="code">{proxima}</span> <span class="code">{direccion}</span> <span class="code">{alias}</span> <span class="code">{link}</span> <span class="code">{saldo}</span> <span class="code">{proximosInicial}</span></p>
       <label class="f">Confirmación de lugar<textarea class="in" data-tpl="confirmar"></textarea></label>
       <label class="f">Recordatorio de clase<textarea class="in" data-tpl="recordar"></textarea></label>
       <label class="f">Pago (seña o cuota)<textarea class="in" data-tpl="pago"></textarea></label>
+      <label class="f">Recordatorio de cuota o saldo pendiente<textarea class="in" data-tpl="cuota"></textarea></label>
+      <label class="f">Seguimiento después de la clase a la gorra<textarea class="in" data-tpl="seguimiento"></textarea></label>
       <div class="grid2">
         <label class="f">Dirección<input class="in" data-cfg="direccion"></label>
         <label class="f">Alias para pagos<input class="in" data-cfg="alias"></label>
@@ -351,7 +375,18 @@ const GRUPOS_INICIALES = [
 const TPL_ORIG = {
   confirmar: '¡Hola {nombre}! 👋 Te confirmamos tu lugar en SEBROX 🤎\n\n📚 {nivel}\n📅 {fechas}\n🕒 {horario}\n📍 {direccion}\n\n¡Te esperamos!',
   recordar: '¡Hola {nombre}! 👋 Te recordamos tu clase de {nivel} en SEBROX: {proxima}, de {horario}.\n📍 {direccion}\n\n¡Nos vemos! 🤎',
-  pago: '¡Hola {nombre}! 👋 Para asegurar tu lugar en {nivel} ({fechas}, {horario}) podés transferir al alias {alias} y mandarnos el comprobante por acá. ¡Gracias! 🤎'
+  pago: '¡Hola {nombre}! 👋 Para asegurar tu lugar en {nivel} ({fechas}, {horario}) podés transferir al alias {alias} y mandarnos el comprobante por acá. ¡Gracias! 🤎',
+  cuota: '¡Hola {nombre}! 👋 Te escribo de SEBROX por el pago de {nivel}: queda un saldo de {saldo}. Podés transferir al alias {alias} y mandarnos el comprobante por acá. ¡Gracias! 🤎',
+  seguimiento: '¡Hola {nombre}! 👋 Gracias por venir a la clase de SEBROX 🤎 ¿Qué te pareció? Si te quedaron ganas de seguir, arranca el nivel Inicial: encapsulado de vinilo de 30x40, dos clases por mes. Próximos grupos: {proximosInicial}. ¿Te reservo un lugar?'
+};
+// Productos que se hacen en cada nivel (los materiales se cargan desde Administración)
+const PRODUCTOS_ORIG = {
+  'Clase a la gorra': ['Letra de resina para llavero'],
+  'Inicial': ['Encapsulado de vinilo 30x40'],
+  'Intermedio': ['Bandeja río de pino 40x30', 'Portajabón líquido', 'Portarretrato', 'Bandeja mármol 40x30'],
+  'Avanzado': ['Obra efecto mar 40x30', 'Obra efecto lava'],
+  'Etapa 1 intensiva': ['Encapsulado de vinilo', 'Efecto mármol sobre madera'],
+  'Etapa 2 intensiva': ['Bandeja con objetos encapsulados (guayubira)']
 };
 const CFG_ORIG = { script: '', clave: '', direccion: 'Bizet 1960, Hurlingham', alias: 'sebrox.arg', tpl: { ...TPL_ORIG } };
 
@@ -371,6 +406,13 @@ function normalizarConfig() {
   S.config.precios = Object.assign(JSON.parse(JSON.stringify(PRECIOS_ORIG)), S.config.precios || {});
   S.config.materiales = S.config.materiales || {};
   NIVELES.forEach(n => { if (!Array.isArray(S.config.materiales[n])) S.config.materiales[n] = []; });
+  // Productos por nivel, qué se hace en cada clase y cambios de fecha de cada alumno
+  if (!S.config.productos || typeof S.config.productos !== 'object') S.config.productos = {};
+  NIVELES.forEach(n => {
+    if (!Array.isArray(S.config.productos[n])) S.config.productos[n] = (PRODUCTOS_ORIG[n] || []).map((nombre, i) => ({ id: 'p-' + (NIVEL_CLASE[n] || 'x') + '-' + i, nombre, materiales: '' }));
+  });
+  if (!S.config.clases || typeof S.config.clases !== 'object' || Array.isArray(S.config.clases)) S.config.clases = {};
+  if (!Array.isArray(S.config.cambios)) S.config.cambios = [];
 }
 normalizarConfig();
 let cola = store.get(LS_COLA, []);   // cambios que no llegaron a Drive
@@ -432,6 +474,94 @@ let configT;
 function guardarConfig() { guardarLocal(); clearTimeout(configT); configT = setTimeout(() => enviar({ action: 'guardarConfig', data: S.config }), 800); }
 const grupoActivo = g => fechasOrd(g).some(f => f >= hoyISO());
 
+/* ---------- Cambios de fecha de cada alumno ---------- */
+const sumarDias = (iso, n) => { const d = dateOf(iso); d.setDate(d.getDate() + n); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+const cambiosDe = a => S.config.cambios.filter(c => c.alumnoId === a.id);
+function fechasAlumno(a) {
+  const g = grupoPorId(a.grupoId); if (!g) return [];
+  const cs = cambiosDe(a);
+  return fechasOrd(g).map(f => { const c = cs.find(x => x.de === f); return c ? c.a : f; }).sort();
+}
+function proximaAlumno(a) {
+  const f = fechasAlumno(a), h = hoyISO();
+  const p = f.find(x => x >= h) || f[f.length - 1];
+  return p ? `${diaDe(p)} ${corta(p)}` : '';
+}
+const fechasTextoAlumno = a => cambiosDe(a).length ? fechasTexto({ fechas: fechasAlumno(a) }) : fechasTexto(grupoPorId(a.grupoId) || { fechas: [] });
+function destinoTxt(c) {
+  const gd = c.grupoId && grupoPorId(c.grupoId);
+  if (gd) return `con ${gd.nivel} de ${horario(gd)}`;
+  return c.inicio && c.fin ? `de ${horario(c)}` : '';
+}
+
+/* ---------- Qué se hace en cada clase ---------- */
+const planClase = (gid, f) => (S.config.clases[gid] || {})[f] || {};
+const productoDe = (nivel, nombre) => (S.config.productos[nivel] || []).find(p => p.nombre === nombre);
+function materialesClase(g, f) {
+  const pl = planClase(g.id, f);
+  if (pl.materiales) return pl.materiales;
+  const pr = pl.producto && productoDe(g.nivel, pl.producto);
+  return pr ? pr.materiales || '' : '';
+}
+const lineas = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
+
+/* ---------- Avisos ya mandados (se guardan en este dispositivo) ---------- */
+const LS_AVISOS = 'sebrox-gestion-avisos';
+const avisos = store.get(LS_AVISOS, {});
+const marcarAviso = k => { avisos[k] = hoyISO(); store.set(LS_AVISOS, avisos); };
+const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+function proximosInicial() {
+  const h = hoyISO();
+  const gs = S.grupos.filter(g => g.nivel === 'Inicial' && (fechasOrd(g)[0] || '') >= h && ocupados(g) < g.cupo)
+    .sort((a, b) => fechasOrd(a)[0].localeCompare(fechasOrd(b)[0]) || a.inicio.localeCompare(b.inicio)).slice(0, 3);
+  if (!gs.length) return 'te aviso apenas abramos fechas nuevas';
+  const l = gs.map(g => `${diaDe(fechasOrd(g)[0])} ${corta(fechasOrd(g)[0])} de ${horario(g)}`);
+  return l.length > 1 ? l.slice(0, -1).join(', ') + ' o ' + l[l.length - 1] : l[0];
+}
+// Listas de "Para hacer"
+function listaRecordar() {
+  const m = sumarDias(hoyISO(), 1);
+  return S.alumnos.filter(a => OCUPAN.includes(a.estado) && fechasAlumno(a).includes(m))
+    .map(a => ({ a, k: 'rec|' + a.id + '|' + m, det: `Clase mañana ${corta(m)}` }));
+}
+function listaCuotas() {
+  const mes = hoyISO().slice(0, 7);
+  return S.alumnos.filter(a => { const g = grupoPorId(a.grupoId); return g && grupoActivo(g) && OCUPAN.includes(a.estado) && saldoDe(a) > 0; })
+    .map(a => ({ a, k: 'cuo|' + a.id + '|' + mes, det: `Debe ${plata(saldoDe(a))}` }));
+}
+function listaSeguimiento() {
+  const h = hoyISO();
+  const siguen = S.alumnos.filter(x => { const g = grupoPorId(x.grupoId); return g && g.nivel !== 'Clase a la gorra' && x.estado !== 'Baja'; });
+  const yaSigue = a => siguen.some(o => o.id !== a.id && ((telWa(o.tel) && telWa(o.tel) === telWa(a.tel)) || norm(o.nombre) === norm(a.nombre)));
+  return S.alumnos.filter(a => {
+    const g = grupoPorId(a.grupoId);
+    if (!g || g.nivel !== 'Clase a la gorra' || !OCUPAN.includes(a.estado)) return false;
+    const f = fechasOrd(g);
+    return f.length && f[f.length - 1] < h && !yaSigue(a);
+  }).map(a => ({ a, k: 'seg|' + a.id, det: `Vino a la clase a la gorra del ${corta(fechasOrd(grupoPorId(a.grupoId)).slice(-1)[0])}` }));
+}
+const TODOS = {
+  rec: { t: 'Recordar la clase de mañana', d: 'A los que tienen clase mañana', tpl: 'recordar', lista: listaRecordar },
+  cuo: { t: 'Cobrar cuotas y saldos', d: 'A los que deben algo, una vez por mes', tpl: 'cuota', lista: listaCuotas },
+  seg: { t: 'Seguimiento de la clase a la gorra', d: 'Ofrecerles el nivel Inicial a los que vinieron', tpl: 'seguimiento', lista: listaSeguimiento }
+};
+function todoHTML() {
+  const items = Object.entries(TODOS).map(([k, t]) => { const l = t.lista(); return { k, t, total: l.length, pend: l.filter(x => !avisos[x.k]).length }; }).filter(x => x.total);
+  if (!items.length) return '';
+  return `<h2>Para hacer</h2><div class="todo">${items.map(x => `<button type="button" class="btn" data-todo="${x.k}"><span><b>${x.t.t}</b><small>${x.t.d}</small></span>${x.pend ? `<span class="badge">${x.pend} sin escribir</span>` : '<span class="badge ok">✓ listo</span>'}</button>`).join('')}</div>`;
+}
+function hojaTodo(tipo) {
+  const t = TODOS[tipo]; if (!t) return;
+  const l = t.lista().sort((x, y) => (avisos[x.k] ? 1 : 0) - (avisos[y.k] ? 1 : 0) || x.a.nombre.localeCompare(y.a.nombre));
+  abrirHoja(`${cabecera(t.t)}
+    <p class="sub">El botón de WhatsApp abre el chat con el mensaje ya escrito; vos solo tocás enviar. Queda marcado en este dispositivo.</p>
+    <div class="card" style="padding:4px 14px">${l.length ? l.map(x => { const g = grupoPorId(x.a.grupoId), hecho = avisos[x.k]; return `<div class="al${hecho ? ' hecho' : ''}">
+      <div><div class="nm">${esc(x.a.nombre)}</div><div class="det">${g ? esc(g.nivel) + ' · ' : ''}${esc(x.det)}</div>${hecho ? `<div style="margin-top:4px"><span class="e-chip">✓ Escrito el ${corta(hecho)}</span></div>` : ''}</div>
+      <div class="acts"><button type="button" class="btn sm wa" data-aviso="${tipo}|${x.a.id}|${esc(x.k)}">${hecho ? 'Otra vez' : 'WhatsApp'}</button>${hecho ? '' : `<button type="button" class="iconbtn" data-aviso-ok="${tipo}|${esc(x.k)}" title="Marcar como hecho sin escribir" aria-label="Marcar como hecho">✓</button>`}</div></div>`; }).join('')
+      : '<div class="empty">No hay nadie en esta lista.</div>'}</div>
+    <p class="hint">El mensaje se cambia en Administración → Mensajes de WhatsApp.</p>`);
+}
+
 /* ---------- Choques de horario ---------- */
 function choques() {
   const out = [];
@@ -476,7 +606,9 @@ function telWa(t) {
 }
 function llenar(tpl, a) {
   const g = grupoPorId(a.grupoId) || { nivel: '', fechas: [], inicio: '', fin: '', link: '' };
-  const vals = { nombre: (a.nombre || '').split(' ')[0], nivel: g.nivel, fechas: fechasTexto(g), horario: g.inicio ? horario(g) : '', proxima: proxima(g), direccion: CFG.direccion, alias: CFG.alias, link: g.link || '' };
+  const tiene = !!grupoPorId(a.grupoId);
+  const vals = { nombre: (a.nombre || '').split(' ')[0], nivel: g.nivel, fechas: tiene ? fechasTextoAlumno(a) : fechasTexto(g), horario: g.inicio ? horario(g) : '', proxima: tiene ? proximaAlumno(a) : proxima(g), direccion: CFG.direccion, alias: CFG.alias, link: g.link || '',
+    saldo: plata(saldoDe(a)), proximosInicial: proximosInicial() };
   return tpl.replace(/\{(\w+)\}/g, (m, k) => (k in vals ? vals[k] : m));
 }
 function abrirWa(a, texto) {
@@ -494,13 +626,22 @@ function chipEstado(e) { return `<span class="e-chip e-${esc(String(e).split(' '
 
 function pintarAgenda() {
   $('#agenda-choques').innerHTML = choquesHTML();
+  $('#agenda-todo').innerHTML = todoHTML();
   $('#agenda-f').innerHTML = filtrosHTML(['Todos', ...NIVELES], fNivel, 'fn');
   const h = hoyISO(), ch = choques();
   const ses = [];
   S.grupos.filter(g => fNivel === 'Todos' || g.nivel === fNivel).forEach(g => {
-    fechasOrd(g).forEach((f, i, arr) => { if (verPasadas || f >= h) ses.push({ f, g, n: i + 1, total: arr.length }); });
+    fechasOrd(g).forEach((f, i, arr) => { if (verPasadas || f >= h) ses.push({ f, g, n: i + 1, total: arr.length, ini: g.inicio }); });
   });
-  ses.sort((x, y) => x.f.localeCompare(y.f) || x.g.inicio.localeCompare(y.g.inicio));
+  // Alumnos que cambiaron una fecha y ese día no vienen con ningún grupo: aparecen aparte
+  S.config.cambios.forEach(c => {
+    const al = S.alumnos.find(x => x.id === c.alumnoId), g = al && grupoPorId(al.grupoId);
+    if (!al || !g || al.estado === 'Baja' || (fNivel !== 'Todos' && g.nivel !== fNivel)) return;
+    const gd = c.grupoId && grupoPorId(c.grupoId);
+    if (gd && (gd.fechas || []).includes(c.a)) return;
+    if (verPasadas || c.a >= h) ses.push({ f: c.a, g, cambio: c, al, ini: c.inicio || g.inicio, fin: c.fin || g.fin });
+  });
+  ses.sort((x, y) => x.f.localeCompare(y.f) || x.ini.localeCompare(y.ini));
   if (!ses.length) { $('#agenda-list').innerHTML = '<div class="empty">No hay clases próximas para mostrar.</div>'; return; }
   let html = '', dia = '';
   ses.forEach(s => {
@@ -508,12 +649,23 @@ function pintarAgenda() {
       dia = s.f;
       html += `<div class="dayhead"><b>${cap(diaDe(s.f))} ${corta(s.f)}</b>${s.f === h ? '<span class="hoy">HOY</span>' : ''}</div>`;
     }
-    const oc = ocupados(s.g), lleno = oc >= s.g.cupo;
+    if (s.cambio) {
+      html += `<button type="button" class="ses" data-edit-al="${s.al.id}">
+      <div class="hora">${hhmm(s.ini)} hs<small>a ${hhmm(s.fin)} hs</small></div>
+      <div class="info">${chipNivel(s.g.nivel)}<span><b>${esc(s.al.nombre)}</b> · cambió la clase del ${corta(s.cambio.de)}</span></div>
+      <div class="cupo">1<small>alumno</small></div>
+    </button>`;
+      return;
+    }
+    const fuera = S.config.cambios.filter(c => c.de === s.f && S.alumnos.some(a => a.id === c.alumnoId && a.grupoId === s.g.id && OCUPAN.includes(a.estado)));
+    const vienen = S.config.cambios.filter(c => c.grupoId === s.g.id && c.a === s.f).map(c => S.alumnos.find(a => a.id === c.alumnoId)).filter(Boolean);
+    const oc = ocupados(s.g) - fuera.length + vienen.length, lleno = oc >= s.g.cupo;
     const choca = ch.some(c => c.fecha === s.f && (c.a === s.g || c.b === s.g));
+    const pl = planClase(s.g.id, s.f), nMat = lineas(materialesClase(s.g, s.f)).length;
     html += `<button type="button" class="ses${choca ? ' choque' : ''}" data-grupo="${s.g.id}">
       <div class="hora">${hhmm(s.g.inicio)} hs<small>a ${hhmm(s.g.fin)} hs</small></div>
-      <div class="info">${chipNivel(s.g.nivel)}<span>${s.total > 1 ? `Clase ${s.n} de ${s.total}` : 'Clase única'}${s.g.nota ? ' · ⚠️ ' + esc(s.g.nota) : ''}${choca ? ' · ⚠️ choca con otro grupo' : ''}</span></div>
-      <div class="cupo ${lleno ? 'lleno' : ''}">${oc}/${s.g.cupo}<small>${lleno ? 'completo' : 'lugares'}</small></div>
+      <div class="info">${chipNivel(s.g.nivel)}<span>${s.total > 1 ? `Clase ${s.n} de ${s.total}` : 'Clase única'}${pl.producto ? ' · 🛠️ ' + esc(pl.producto) + (nMat ? ` (${nMat} materiales)` : '') : ''}${s.g.nota ? ' · ⚠️ ' + esc(s.g.nota) : ''}${choca ? ' · ⚠️ choca con otro grupo' : ''}${fuera.length ? ` · ${fuera.length} cambió de fecha` : ''}${vienen.length ? ' · viene ' + vienen.map(a => esc(a.nombre.split(' ')[0])).join(', ') + ' (cambio de fecha)' : ''}</span></div>
+      <div class="cupo ${lleno ? 'lleno' : ''}">${oc}/${s.g.cupo}<small>${lleno ? 'completo' : 'vienen'}</small></div>
     </button>`;
   });
   $('#agenda-list').innerHTML = html;
@@ -552,11 +704,15 @@ function pintarAlumnos() {
       const ga = grupoPorId(a.grupoId), gb = grupoPorId(b.grupoId);
       return (ga && gb ? ordenGrupo(ga, gb) : 0) || a.nombre.localeCompare(b.nombre);
     });
+  const porNombre = {};
+  S.alumnos.forEach(a => { const k = norm(a.nombre); if (k) (porNombre[k] = porNombre[k] || []).push(a); });
+  const dups = Object.values(porNombre).filter(x => x.length > 1);
+  $('#al-dup').innerHTML = dups.length ? `<div class="alert soft"><b>Posibles repetidos:</b> ${dups.map(x => `${esc(x[0].nombre)} (${x.length} veces)`).join(', ')}. Si es la misma persona que viene otro día, borrá el repetido y usá "Cambiar fecha" en su ficha.</div>` : '';
   $('#al-list').innerHTML = lista.length ? lista.map(a => {
     const g = grupoPorId(a.grupoId);
     return `<div class="al">
       <div><div class="nm">${esc(a.nombre)}</div>
-        <div class="det">${g ? esc(g.nivel) + ' · ' + esc(fechasTexto(g)) + ' · ' + horario(g) : 'Sin grupo'}</div>
+        <div class="det">${g ? esc(g.nivel) + ' · ' + esc(fechasTextoAlumno(a)) + ' · ' + horario(g) : 'Sin grupo'}${cambiosDe(a).length ? ' · <span class="cambio">cambió fecha</span>' : ''}</div>
         ${a.edad || a.domicilio ? `<div class="det">${[a.edad ? esc(a.edad) + ' años' : '', esc(a.domicilio || '')].filter(Boolean).join(' · ')}</div>` : ''}
         <div class="row" style="margin-top:5px">${chipEstado(a.estado)}${pagadoDe(a) ? `<span class="e-chip">Pagó ${plata(pagadoDe(a))}</span>` : ''}${saldoDe(a) ? `<span class="saldo">Debe ${plata(saldoDe(a))}</span>` : ''}</div></div>
       <div class="acts">
@@ -583,6 +739,10 @@ function pintarAdmin() {
   document.querySelectorAll('[data-precio]').forEach(i => i.addEventListener('input', () => {
     const [n, k] = i.dataset.precio.split('|'); S.config.precios[n][k] = parseInt(i.value.replace(/\D/g, ''), 10) || 0; guardarConfig();
   }));
+  $('#adm-productos').innerHTML = NIVELES.map(n => { const ps = S.config.productos[n] || [];
+    return `<div class="row" style="margin:12px 0 2px">${chipNivel(n)}<span class="spacer"></span><button type="button" class="btn sm ghost" data-productos="${esc(n)}">Editar</button></div>
+    <div class="hint">${ps.length ? ps.map(p => `${esc(p.nombre)} · ${lineas(p.materiales).length ? lineas(p.materiales).length + ' materiales' : '<span style="color:var(--warn)">sin materiales</span>'}`).join('<br>') : 'Sin productos cargados.'}</div>`; }).join('')
+    + (conectado() && rol !== 'dueño' ? '<p class="hint">🔒 Para guardar productos, materiales y cambios de fecha en la planilla, entrá al Panel con su clave.</p>' : '');
   document.querySelectorAll('[data-tpl]').forEach(t => { t.value = CFG.tpl[t.dataset.tpl]; });
   document.querySelectorAll('[data-cfg]').forEach(i => { i.value = CFG[i.dataset.cfg]; });
   $('#cfg-script').value = CFG.script; $('#cfg-clave').value = CFG.clave;
@@ -617,9 +777,16 @@ function hojaGrupo(id) {
     <p class="sub">${horario(g)} · ${oc} de ${g.cupo} lugares ocupados</p>
     ${g.nota ? `<div class="alert soft">⚠️ ${esc(g.nota)}</div>` : ''}
     <div class="card" style="padding:4px 14px">${als.length ? als.map(a => `<div class="al">
-      <div><div class="nm">${esc(a.nombre)}</div><div class="row" style="margin-top:4px">${chipEstado(a.estado)}${saldoDe(a) ? `<span class="saldo">Debe ${plata(saldoDe(a))}</span>` : ''}<span class="det">${a.edad ? esc(a.edad) + ' años · ' : ''}${esc(a.tel || '')}</span></div></div>
+      <div><div class="nm">${esc(a.nombre)}</div><div class="row" style="margin-top:4px">${chipEstado(a.estado)}${saldoDe(a) ? `<span class="saldo">Debe ${plata(saldoDe(a))}</span>` : ''}${cambiosDe(a).map(c => `<span class="cambio">${corta(c.de)} → ${diaDe(c.a)} ${corta(c.a)}</span>`).join('')}<span class="det">${a.edad ? esc(a.edad) + ' años · ' : ''}${esc(a.tel || '')}</span></div></div>
       <div class="acts"><button type="button" class="btn sm wa" data-wa="${a.id}">WhatsApp</button><button type="button" class="iconbtn" data-edit-al="${a.id}" aria-label="Editar ${esc(a.nombre)}">✎</button></div></div>`).join('')
       : '<div class="empty">Todavía no hay nadie anotado en este grupo.</div>'}</div>
+    ${(() => { const v = S.config.cambios.filter(c => c.grupoId === g.id).map(c => ({ c, al: S.alumnos.find(a => a.id === c.alumnoId) })).filter(x => x.al);
+      return v.length ? `<div class="alert soft"><b>Vienen de otro grupo:</b> ${v.map(x => `${esc(x.al.nombre)} el ${diaDe(x.c.a)} ${corta(x.c.a)}`).join(', ')}.</div>` : ''; })()}
+    <h2 style="margin-top:16px">Qué hacen en cada clase</h2>
+    <div class="card" style="padding:4px 14px">${fechasOrd(g).map(f => { const pl = planClase(g.id, f), mats = lineas(materialesClase(g, f));
+      return `<div class="clase"><div><div class="p">${cap(diaDe(f))} ${corta(f)} · ${pl.producto ? esc(pl.producto) : '<span class="det" style="font-weight:500">sin producto elegido</span>'}</div>
+        ${mats.length ? `<div class="m">${mats.map(esc).join(' · ')}</div>` : pl.producto ? '<div class="m">Sin materiales cargados para este producto.</div>' : ''}${pl.nota ? `<div class="m">📝 ${esc(pl.nota)}</div>` : ''}</div>
+        <button type="button" class="btn sm" data-clase="${g.id}|${f}">${pl.producto ? 'Editar' : 'Elegir'}</button></div>`; }).join('')}</div>
     <div class="row" style="margin-top:10px">
       <button type="button" class="btn primary" data-add-en="${g.id}">+ Anotar alumno</button>
       ${als.length ? `<button type="button" class="btn" data-copiar-grupo="${g.id}">Copiar recordatorio para el grupo</button>` : ''}
@@ -653,6 +820,10 @@ function hojaAlumno(id, grupoId) {
         <label class="f">Concepto<select class="in" name="cobroConcepto">${CONCEPTOS_IN.map(c => `<option>${c}</option>`).join('')}</select></label>
       </div>
       <label class="f">Medio de pago<select class="in" name="cobroMedio">${MEDIOS.map(m => `<option>${m}</option>`).join('')}</select></label>`}
+      ${id && grupoPorId(a.grupoId) ? `<div class="card" style="margin:6px 0"><b style="font-size:13px;color:var(--muted)">Sus fechas de clase</b>${fechasOrd(grupoPorId(a.grupoId)).map(f => { const c = cambiosDe(a).find(x => x.de === f);
+        return `<div class="row" style="margin-top:8px">${c ? `<span class="tach">${diaDe(f)} ${corta(f)}</span><span>→ <b>${diaDe(c.a)} ${corta(c.a)}</b></span><span class="det">${esc(destinoTxt(c))}</span><span class="spacer"></span><button type="button" class="btn sm ghost" data-deshacer-cambio="${c.id}">Deshacer</button>`
+          : `<span>${cap(diaDe(f))} ${corta(f)}</span><span class="spacer"></span><button type="button" class="btn sm" data-cambiar-fecha="${a.id}|${f}">Cambiar fecha</button>`}</div>`; }).join('')}
+        <p class="hint">Si viene otro día (por ejemplo a la semana en vez de a los 15 días), cambiá esa fecha acá. El grupo no se toca. Guardá antes los otros cambios de la ficha.</p></div>` : ''}
       <label class="f">Notas<textarea class="in" name="notas" placeholder="Por ejemplo: viene con una amiga, pagó por transferencia…">${esc(a.notas)}</textarea></label>
       <p class="hint" id="al-aviso"></p>
       <div class="row" style="margin-top:6px">
@@ -681,6 +852,104 @@ function hojaAlumno(id, grupoId) {
     if (cobro > 0) guardarMov({ id: nuevoId('m-'), fecha: hoyISO(), tipo: 'ingreso', concepto: f.cobroConcepto.value, monto: cobro, medio: f.cobroMedio.value, nota: '', alumnoId: datos.id, grupoId: datos.grupoId });
     cerrarHoja(); pintar(); toast(id ? 'Cambios guardados.' : `${nombre} quedó anotado.`);
     if (!id && datos.tel && datos.grupoId) setTimeout(() => hojaWa(datos.id), 250);
+  });
+}
+
+function hojaCambio(alumnoId, de) {
+  const a = S.alumnos.find(x => x.id === alumnoId), g = a && grupoPorId(a.grupoId);
+  if (!a || !g) return;
+  const previo = cambiosDe(a).find(x => x.de === de) || {};
+  abrirHoja(`${cabecera('Cambiar fecha · ' + esc(a.nombre.split(' ')[0]))}
+    <p class="sub">En vez de venir el <b>${diaDe(de)} ${corta(de)}</b> con su grupo (${esc(g.nivel)}, ${horario(g)}), viene:</p>
+    <form id="f-cambio">
+      <label class="f">Nueva fecha<input class="in" type="date" name="a" value="${esc(previo.a || '')}" required></label>
+      <label class="f">¿Con qué grupo viene ese día?<select class="in" name="grupoId" data-no-focus="1"></select></label>
+      <div class="grid2" id="cambio-hora">
+        <label class="f">Desde<input class="in" type="time" name="inicio" value="${esc(previo.inicio || g.inicio)}"></label>
+        <label class="f">Hasta<input class="in" type="time" name="fin" value="${esc(previo.fin || g.fin)}"></label>
+      </div>
+      <p class="hint" id="cambio-aviso"></p>
+      <div class="row" style="margin-top:6px"><button type="submit" class="btn primary">Guardar cambio</button><button type="button" class="btn ghost" data-edit-al="${a.id}">Volver</button></div>
+    </form>`);
+  const f = $('#f-cambio');
+  const opciones = () => {
+    const gs = S.grupos.filter(x => (x.fechas || []).includes(f.a.value)).sort((x, y) => x.inicio.localeCompare(y.inicio));
+    const sel = f.grupoId.value || previo.grupoId || (gs.find(x => x.id === g.id) || gs.find(x => x.nivel === g.nivel) || {}).id || '';
+    f.grupoId.innerHTML = gs.map(x => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.nivel)} · ${horario(x)} (${ocupados(x)}/${x.cupo})</option>`).join('') + `<option value="" ${sel ? '' : 'selected'}>Ninguno: viene en otro horario</option>`;
+    mostrar();
+  };
+  const mostrar = () => {
+    const gd = grupoPorId(f.grupoId.value);
+    $('#cambio-hora').classList.toggle('hidden', !!gd);
+    $('#cambio-aviso').innerHTML = !f.a.value ? 'Elegí la fecha en que viene.' : gd && ocupados(gd) >= gd.cupo ? '<span style="color:var(--warn);font-weight:600">⚠️ Ese grupo ya está completo ese día.</span>' : '';
+  };
+  f.a.addEventListener('change', opciones); f.grupoId.addEventListener('change', mostrar); opciones();
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    if (!f.a.value) { toast('Elegí la nueva fecha.'); return; }
+    if (f.a.value === de) { toast('Es la misma fecha de siempre.'); return; }
+    const gd = grupoPorId(f.grupoId.value);
+    if (!gd && !(f.fin.value > f.inicio.value)) { toast('Revisá el horario.'); return; }
+    S.config.cambios = S.config.cambios.filter(x => !(x.alumnoId === a.id && x.de === de));
+    S.config.cambios.push({ id: previo.id || nuevoId('c-'), alumnoId: a.id, de, a: f.a.value, grupoId: gd ? gd.id : '', inicio: gd ? '' : f.inicio.value, fin: gd ? '' : f.fin.value });
+    guardarConfig(); pintar(); hojaAlumno(a.id); toast(`Listo: ${a.nombre.split(' ')[0]} viene el ${diaDe(f.a.value)} ${corta(f.a.value)}.`);
+  });
+}
+
+function hojaClase(gid, fecha) {
+  const g = grupoPorId(gid); if (!g) return;
+  const pl = planClase(gid, fecha), prods = S.config.productos[g.nivel] || [];
+  const esOtro = pl.producto && !productoDe(g.nivel, pl.producto);
+  abrirHoja(`${cabecera(esc(g.nivel) + ' · ' + cap(diaDe(fecha)) + ' ' + corta(fecha))}
+    <p class="sub">Elegí qué producto hacen en esta clase. Los materiales salen de la lista del producto; si esta clase lleva algo distinto, cambialos acá.</p>
+    <form id="f-clase">
+      <label class="f">Producto<select class="in" name="producto" data-no-focus="1"><option value="">— Sin elegir —</option>${prods.map(p => `<option ${p.nombre === pl.producto ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}<option value="__otro" ${esOtro ? 'selected' : ''}>Otro…</option></select></label>
+      <label class="f ${esOtro ? '' : 'hidden'}" id="clase-otro-l">¿Cuál?<input class="in" name="otro" value="${esOtro ? esc(pl.producto) : ''}"></label>
+      <label class="f">Materiales para preparar (uno por línea)<textarea class="in" name="materiales" placeholder="Por ejemplo:&#10;Resina 500 g&#10;Vinilo 30x40&#10;Pigmento blanco"></textarea></label>
+      <label class="f">Nota (opcional)<input class="in" name="nota" value="${esc(pl.nota || '')}" placeholder="Por ejemplo: traer las piezas de la clase anterior"></label>
+      <label class="row" style="font-size:13.5px;color:var(--muted);gap:8px;margin:6px 0 10px;cursor:pointer"><input type="checkbox" name="siguientes" style="width:20px;height:20px"> Usar este producto en las clases siguientes de este grupo que no tengan uno elegido</label>
+      <div class="row"><button type="submit" class="btn primary">Guardar</button><button type="button" class="btn ghost" data-grupo="${g.id}">Volver al grupo</button></div>
+    </form>`);
+  const f = $('#f-clase');
+  const nombreSel = () => f.producto.value === '__otro' ? f.otro.value.trim() : f.producto.value;
+  const plantilla = () => { const p = productoDe(g.nivel, nombreSel()); return p ? p.materiales || '' : ''; };
+  f.materiales.value = pl.materiales || plantilla();
+  let ultima = plantilla();
+  f.producto.addEventListener('change', () => {
+    $('#clase-otro-l').classList.toggle('hidden', f.producto.value !== '__otro');
+    if (!f.materiales.value.trim() || f.materiales.value === ultima) f.materiales.value = plantilla();
+    ultima = plantilla();
+  });
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    const producto = nombreSel(), mats = f.materiales.value.trim(), tpl = plantilla().trim();
+    S.config.clases[gid] = S.config.clases[gid] || {};
+    if (!producto && !mats && !f.nota.value.trim()) delete S.config.clases[gid][fecha];
+    else S.config.clases[gid][fecha] = { producto, materiales: mats === tpl ? '' : mats, nota: f.nota.value.trim() };
+    if (producto && f.siguientes.checked) fechasOrd(g).filter(x => x > fecha && !planClase(gid, x).producto).forEach(x => { S.config.clases[gid][x] = { producto, materiales: '', nota: '' }; });
+    guardarConfig(); pintar(); hojaGrupo(gid); toast('Clase guardada.');
+  });
+}
+
+function hojaProductos(nivel) {
+  const items = (S.config.productos[nivel] || []).map(p => ({ ...p }));
+  const fila = p => `<div class="prod" data-id="${esc(p.id)}">
+      <div class="row"><input class="in" name="nombre" value="${esc(p.nombre)}" placeholder="Nombre del producto" aria-label="Producto"><button type="button" class="iconbtn" data-quitar-prod aria-label="Quitar producto">✕</button></div>
+      <label class="f" style="margin-bottom:0">Materiales (uno por línea)<textarea class="in" name="materiales" placeholder="Por ejemplo:&#10;Resina 500 g&#10;Madera de pino 40x30&#10;Pigmento azul">${esc(p.materiales || '')}</textarea></label></div>`;
+  abrirHoja(`${cabecera('Productos · ' + esc(nivel))}
+    <p class="sub">Escribí los materiales de cada producto, uno por línea. Es la lista que vas a ver en cada clase para preparar.</p>
+    <form id="f-prod">
+      <div id="prod-list">${(items.length ? items : [{ id: nuevoId('p-'), nombre: '', materiales: '' }]).map(fila).join('')}</div>
+      <button type="button" class="btn sm ghost" id="add-prod">+ Agregar producto</button>
+      <button type="submit" class="btn primary block" style="margin-top:12px">Guardar productos</button>
+    </form>`);
+  const f = $('#f-prod');
+  $('#add-prod').addEventListener('click', () => { $('#prod-list').insertAdjacentHTML('beforeend', fila({ id: nuevoId('p-'), nombre: '', materiales: '' })); });
+  f.addEventListener('click', e => { const q = e.target.closest('[data-quitar-prod]'); if (q) q.closest('.prod').remove(); });
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    S.config.productos[nivel] = [...f.querySelectorAll('.prod')].map(r => ({ id: r.dataset.id, nombre: r.querySelector('[name=nombre]').value.trim(), materiales: r.querySelector('[name=materiales]').value.trim() })).filter(p => p.nombre);
+    guardarConfig(); cerrarHoja(); pintar(); toast(`Productos de ${nivel} guardados.`);
   });
 }
 
@@ -871,7 +1140,10 @@ function pintarPanel() {
   const pendientes = conLugar.filter(a => saldoDe(a) > 0).sort((a, b) => saldoDe(b) - saldoDe(a));
   const lista = movs.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.id > a.id ? 1 : -1));
 
+  const sinAlumno = S.movs.filter(m => m.tipo === 'ingreso' && !m.alumnoId && !['Venta de insumos', 'Otro ingreso'].includes(m.concepto))
+    .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   $('#panel-body').innerHTML = `
+    ${sinAlumno.length ? `<div class="alert soft"><b>⚠️ ${sinAlumno.length === 1 ? 'Hay 1 cobro' : `Hay ${sinAlumno.length} cobros`} sin alumno.</b> Tocá cada uno y elegí de quién es, así el saldo de ese alumno queda bien:<div class="row" style="margin-top:8px">${sinAlumno.map(m => `<button type="button" class="btn sm" data-edit-mov="${m.id}">${corta(m.fecha)} · ${esc(m.concepto)} · ${plata(m.monto)}</button>`).join('')}</div></div>` : ''}
     <div class="kpis">
       <div class="kpi dest"><small>Cobrado · ${periodo}</small><b>${plata(cobrado)}</b><span>${(n => n + (n === 1 ? ' cobro' : ' cobros'))(movs.filter(m => m.tipo === 'ingreso').length)}</span></div>
       <div class="kpi"><small>Gastos · ${periodo}</small><b>${plata(gastos)}</b><span>${(n => n + (n === 1 ? ' gasto' : ' gastos'))(movs.filter(m => m.tipo === 'gasto').length)}</span></div>
@@ -995,6 +1267,23 @@ document.addEventListener('click', e => {
   if (d.editMov) { const m = S.movs.find(x => x.id === d.editMov); return m && hojaMov(m.tipo, m.id); }
   if (d.cobrar) return hojaMov('ingreso', '', d.cobrar);
   if (d.materiales) return hojaMateriales(d.materiales);
+  if (d.todo) return hojaTodo(d.todo);
+  if (d.aviso) {
+    const [tipo, alId, k] = d.aviso.split('|'), a = S.alumnos.find(x => x.id === alId);
+    if (!a) return;
+    abrirWa(a, llenar(CFG.tpl[TODOS[tipo].tpl] || '', a));
+    if (telWa(a.tel)) { marcarAviso(k); hojaTodo(tipo); pintar(); }
+    return;
+  }
+  if (d.avisoOk) { const [tipo, k] = d.avisoOk.split('|'); marcarAviso(k); hojaTodo(tipo); return pintar(); }
+  if (d.clase) { const [gid, f] = d.clase.split('|'); return hojaClase(gid, f); }
+  if (d.productos) return hojaProductos(d.productos);
+  if (d.cambiarFecha) { const [alId, f] = d.cambiarFecha.split('|'); return hojaCambio(alId, f); }
+  if (d.deshacerCambio) {
+    const c = S.config.cambios.find(x => x.id === d.deshacerCambio); if (!c) return;
+    S.config.cambios = S.config.cambios.filter(x => x.id !== c.id); guardarConfig(); pintar();
+    hojaAlumno(c.alumnoId); return toast('Cambio de fecha deshecho.');
+  }
   if ('cerrarPanel' in d) return cerrarPanel();
   if (d.borrarMov) {
     if (!confirm('¿Borrar este movimiento?')) return;
@@ -1079,6 +1368,7 @@ function aplicarDrive(j) {
   } else {
     S.movs = []; S.pagados = j.pagados || {};
     if (j.config && j.config.precios) S.config.precios = j.config.precios;
+    if (j.config) ['productos', 'clases', 'cambios'].forEach(k => { if (j.config[k]) S.config[k] = j.config[k]; });
     NIVELES.forEach(n => { S.config.materiales[n] = []; });
     normalizarConfig();
   }
