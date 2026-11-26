@@ -447,6 +447,9 @@ function normalizarConfig() {
 }
 normalizarConfig();
 let cola = store.get(LS_COLA, []);   // cambios que no llegaron a Drive
+// Saca el agregado "_extra" de cambios viejos que quedaron trabados en la cola
+cola.forEach(op => { const c = op && op.data && (op.action === 'guardarConfig' ? op.data : op.data.config); if (c && c.materiales) delete c.materiales._extra; });
+try { localStorage.setItem(LS_COLA, JSON.stringify(cola)); } catch (e) {}
 // Panel: solo se abre con la clave del panel (la del dueño). Sin ella, la app no recibe la caja.
 let panelClave = store.get('sebrox-gestion-panel', '') || '';
 let rol = panelClave ? 'dueño' : 'equipo';
@@ -507,7 +510,7 @@ let configT;
 const CLAVES_EXTRA = ['insumos', 'productos', 'clases', 'cambios'];
 function configParaEnviar() {
   const extra = {}; CLAVES_EXTRA.forEach(k => { if (S.config[k] !== undefined) extra[k] = S.config[k]; });
-  return { ...S.config, materiales: { ...(S.config.materiales || {}), _extra: extra } };
+  return { ...S.config };
 }
 function desempacarConfig(cfg) {
   const ex = cfg && cfg.materiales && cfg.materiales._extra;
@@ -1543,7 +1546,7 @@ async function llamar(cuerpo, claveUsar) {
   const clave = claveUsar || (rol === 'dueño' && panelClave ? panelClave : CFG.clave);
   const r = await conTiempo(fetch(CFG.script, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...cuerpo, clave }) }), 25000);
   const j = await r.json();
-  if (!j.ok) throw new Error(j.error || 'error');
+  if (!j.ok) { const err = new Error(j.error || 'error'); err.servidor = true; throw err; }
   return j;
 }
 function aplicarDrive(j) {
@@ -1580,6 +1583,7 @@ async function vaciarCola() {
       catch (e) {
         if (e.message === 'permiso') toast('Eso solo se puede hacer con la clave del panel.');
         else if (e.message === 'clave' && rol === 'dueño') { panelClave = ''; rol = 'equipo'; store.set('sebrox-gestion-panel', ''); continue; }
+        else if (e.servidor && cola[0].action === 'guardarConfig') toast('La planilla no aceptó la configuración (' + e.message + '). Quedó guardada en este celular.');
         else throw e;
       }
       cola.shift(); store.set(LS_COLA, cola);
