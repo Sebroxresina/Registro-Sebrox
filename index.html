@@ -502,7 +502,20 @@ const saldoDe = a => Math.max(0, esperadoDe(a) - pagadoDe(a));
 const precioNivel = n => { const p = S.config.precios[n] || {}; return (Number(p.insc) || 0) + (Number(p.cuota) || 0); };
 const costoAlumno = n => (S.config.materiales[n] || []).reduce((t, m) => t + (Number(m.precio) || 0) / Math.max(1, Number(m.rinde) || 1), 0);
 let configT;
-function guardarConfig() { guardarLocal(); clearTimeout(configT); configT = setTimeout(() => enviar({ action: 'guardarConfig', data: S.config }), 800); }
+// La planilla de Google solo guarda "precios" y "materiales": los insumos, productos, clases y cambios
+// viajan también adentro de materiales._extra para que no se pierdan al sincronizar.
+const CLAVES_EXTRA = ['insumos', 'productos', 'clases', 'cambios'];
+function configParaEnviar() {
+  const extra = {}; CLAVES_EXTRA.forEach(k => { if (S.config[k] !== undefined) extra[k] = S.config[k]; });
+  return { ...S.config, materiales: { ...(S.config.materiales || {}), _extra: extra } };
+}
+function desempacarConfig(cfg) {
+  const ex = cfg && cfg.materiales && cfg.materiales._extra;
+  if (ex && typeof ex === 'object') CLAVES_EXTRA.forEach(k => { if (cfg[k] === undefined && ex[k] !== undefined) cfg[k] = ex[k]; });
+  if (cfg && cfg.materiales) delete cfg.materiales._extra;
+  return cfg;
+}
+function guardarConfig() { guardarLocal(); clearTimeout(configT); configT = setTimeout(() => enviar({ action: 'guardarConfig', data: configParaEnviar() }), 800); }
 const grupoActivo = g => fechasOrd(g).some(f => f >= hoyISO());
 
 /* ---------- Cambios de fecha de cada alumno ---------- */
@@ -1538,12 +1551,19 @@ function aplicarDrive(j) {
   S.grupos = j.grupos; S.alumnos = j.alumnos || [];
   if (j.rol === 'dueño') {
     S.movs = j.movs || [];
-    if (j.config && j.config.precios) { S.config = j.config; normalizarConfig(); }
-    else enviar({ action: 'guardarConfig', data: S.config });
+    if (j.config && j.config.precios) {
+      const local = S.config; S.config = desempacarConfig(j.config);
+      // Si la planilla todavía no tiene insumos/productos, se conservan los de este equipo y se suben
+      let faltaban = false;
+      CLAVES_EXTRA.forEach(k => { if (S.config[k] === undefined && local && local[k] !== undefined) { S.config[k] = local[k]; faltaban = true; } });
+      normalizarConfig();
+      if (faltaban) enviar({ action: 'guardarConfig', data: configParaEnviar() });
+    }
+    else enviar({ action: 'guardarConfig', data: configParaEnviar() });
   } else {
     S.movs = []; S.pagados = j.pagados || {};
     if (j.config && j.config.precios) S.config.precios = j.config.precios;
-    if (j.config) ['insumos', 'productos', 'clases', 'cambios'].forEach(k => { if (j.config[k]) S.config[k] = j.config[k]; });
+    if (j.config) { desempacarConfig(j.config); CLAVES_EXTRA.forEach(k => { if (j.config[k]) S.config[k] = j.config[k]; }); }
     NIVELES.forEach(n => { S.config.materiales[n] = []; });
     normalizarConfig();
   }
@@ -1587,7 +1607,7 @@ async function cargarDeDrive(avisar) {
     }
     syncEstado = '';
     if (!j.grupos.length && S.grupos.length) {
-      await llamar({ action: 'importar', data: { grupos: S.grupos, alumnos: S.alumnos, movs: S.movs, config: S.config } }).then(aplicarDrive);
+      await llamar({ action: 'importar', data: { grupos: S.grupos, alumnos: S.alumnos, movs: S.movs, config: configParaEnviar() } }).then(aplicarDrive);
       toast('Subí los grupos a la planilla de Drive.');
     } else { aplicarDrive(j); if (avisar) toast('Actualizado desde Drive.'); }
   } catch (e) { syncEstado = 'error'; if (avisar) toast(e.message === 'clave' ? 'La clave no coincide con la del Apps Script.' : 'No se pudo conectar con Drive.'); }
@@ -1606,7 +1626,7 @@ $('#btn-subir').addEventListener('click', async () => {
   if (!conectado()) { toast('Primero conectá la planilla.'); return; }
   if (rol !== 'dueño') { toast('Para subir todo, primero entrá al Panel con su clave.'); return; }
   if (!confirm('Esto reemplaza lo que hay en la planilla por lo que ves en esta app. ¿Seguir?')) return;
-  try { aplicarDrive(await llamar({ action: 'importar', reemplazar: true, data: { grupos: S.grupos, alumnos: S.alumnos, movs: S.movs, config: S.config } })); cola = []; store.set(LS_COLA, cola); pintar(); toast('Planilla actualizada.'); }
+  try { aplicarDrive(await llamar({ action: 'importar', reemplazar: true, data: { grupos: S.grupos, alumnos: S.alumnos, movs: S.movs, config: configParaEnviar() } })); cola = []; store.set(LS_COLA, cola); pintar(); toast('Planilla actualizada.'); }
   catch (e) { toast('No se pudo subir. Probá de nuevo.'); }
 });
 
