@@ -1534,6 +1534,15 @@ $('#btn-csv').addEventListener('click', () => {
 
 /* ---------- Drive (Apps Script) ---------- */
 let syncEstado = '';
+let ultimoError = '';
+function explicarError(e) {
+  const m = e && e.message;
+  if (m === 'timeout') return 'Drive tardó más de un minuto en responder. Probá de nuevo en un rato.';
+  if (m === 'red') return 'No hay conexión con Drive: revisá internet o que la dirección del Apps Script esté bien copiada (Admin → Conexión con Drive).';
+  if (m === 'respuesta') return 'Drive no respondió como la app espera: en Apps Script revisá que la implementación sea "Aplicación web" con acceso "Cualquier persona", y que la dirección en la app sea la que termina en /exec.';
+  if (m === 'clave') return 'La clave de la app no coincide con la del Apps Script.';
+  return 'Drive respondió con un error: ' + (m || 'desconocido');
+}
 function pintarSync() {
   const b = $('#sync');
   if (!conectado()) { b.className = 'sync demo hidden'; b.textContent = ''; return; }
@@ -1544,8 +1553,10 @@ function pintarSync() {
 function conTiempo(p, ms) { return Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), ms))]); }
 async function llamar(cuerpo, claveUsar) {
   const clave = claveUsar || (rol === 'dueño' && panelClave ? panelClave : CFG.clave);
-  const r = await conTiempo(fetch(CFG.script, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...cuerpo, clave }) }), 25000);
-  const j = await r.json();
+  let r, j;
+  try { r = await conTiempo(fetch(CFG.script, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...cuerpo, clave }) }), 60000); }
+  catch (e) { throw new Error(e.message === 'timeout' ? 'timeout' : 'red'); }
+  try { j = await r.json(); } catch (e) { throw new Error('respuesta'); }
   if (!j.ok) { const err = new Error(j.error || 'error'); err.servidor = true; throw err; }
   return j;
 }
@@ -1589,7 +1600,7 @@ async function vaciarCola() {
       cola.shift(); store.set(LS_COLA, cola);
     }
     syncEstado = ''; if (ultima) { aplicarDrive(ultima); pintar(); }
-  } catch (e) { syncEstado = 'error'; }
+  } catch (e) { syncEstado = 'error'; ultimoError = explicarError(e); }
   enCurso = false; pintarSync();
 }
 function enviar(op) {
@@ -1598,7 +1609,7 @@ function enviar(op) {
 }
 async function cargarDeDrive(avisar) {
   if (!conectado()) return;
-  if (cola.length) { await vaciarCola(); if (cola.length) { if (avisar) toast('No se pudo conectar con Drive. Revisá internet.'); return; } }
+  if (cola.length) { await vaciarCola(); if (cola.length) { if (avisar) toast(ultimoError || 'No se pudo conectar con Drive. Revisá internet.'); return; } }
   syncEstado = 'guardando'; pintarSync();
   try {
     let j;
@@ -1614,7 +1625,7 @@ async function cargarDeDrive(avisar) {
       await llamar({ action: 'importar', data: { grupos: S.grupos, alumnos: S.alumnos, movs: S.movs, config: configParaEnviar() } }).then(aplicarDrive);
       toast('Subí los grupos a la planilla de Drive.');
     } else { aplicarDrive(j); if (avisar) toast('Actualizado desde Drive.'); }
-  } catch (e) { syncEstado = 'error'; if (avisar) toast(e.message === 'clave' ? 'La clave no coincide con la del Apps Script.' : 'No se pudo conectar con Drive.'); }
+  } catch (e) { syncEstado = 'error'; ultimoError = explicarError(e); if (avisar) toast(ultimoError); }
   pintar();
 }
 $('#btn-conectar').addEventListener('click', async () => {
@@ -1636,7 +1647,7 @@ $('#btn-subir').addEventListener('click', async () => {
 
 /* ---------- Utilidades ---------- */
 let toastT;
-function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3200); }
+function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), Math.max(3200, String(m).length * 70)); }
 async function copiar(txt) {
   try { await navigator.clipboard.writeText(txt); toast('Mensaje copiado. Pegalo en el grupo de WhatsApp.'); }
   catch (e) { prompt('Copiá el mensaje:', txt); }
